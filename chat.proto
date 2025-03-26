@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package chat;
+
+// Client registration message
+message ClientRegistration {
+  string username = 1;
+}
+
+// Chat message sent by clients
+message ChatMessage {
+  string username = 1;    // Sender username
+  string content = 2;     // Message content
+  int64 timestamp = 3;    // Optional timestamp
+}
+
+// Wrapper message to determine message type
+message ChatPacket {
+  oneof payload {
+    ClientRegistration registration = 1;
+    ChatMessage message = 2;
+  }
+}

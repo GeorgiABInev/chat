@@ -1,0 +1,110 @@
+Here's a comprehensive .gitignore file for a C++ project with CMake, SQLite databases, and Protocol Buffers:
+Copy# Build directories
+/build/
+/bin/
+/lib/
+/Debug/
+/Release/
+/x64/
+/out/
+/cmake-build-*/
+
+# Generated files by Protocol Buffers
+*.pb.h
+*.pb.cc
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+
+# SQLite database files
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.backup
+
+# IDE files
+## Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+
+## Visual Studio Code
+.vscode/
+.history/
+
+## JetBrains IDEs
+.idea/
+*.iml
+*.iws
+cmake-build-*/
+*.ipr
+
+## Eclipse
+.cproject
+.project
+.settings/
+
+# OS specific files
+## macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+## Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+## Linux
+*~
+.directory
+.Trash-*
+
+# Logs
+*.log
+log/
+logs/
