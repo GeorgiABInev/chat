@@ -24,6 +24,7 @@ public:
   virtual ~chat_participant() {}
   virtual void deliver(const chat_message& msg) = 0;
   virtual const std::string& username() const = 0;
+  virtual const std::string& get_ip_address() const = 0;
 };
 
 typedef std::shared_ptr<chat_participant> chat_participant_ptr;
@@ -52,10 +53,11 @@ public:
         }
     }
 
-    void join(chat_participant_ptr participant)
+    void join(chat_participant_ptr participant, const std::string& ip_address)
     {
-        // Store/update user in database
-        int user_id = db_->get_or_create_user(participant->username());
+        // Store/update user in database with IP
+        int user_id = db_->get_or_create_user(participant->username(), ip_address);
+    
 
         participants_.insert(participant);
         for (auto msg: recent_msgs_)
@@ -99,9 +101,22 @@ public:
 
             // Don't store system messages in the database
             if (username != "System") {
-                int user_id = db_->get_or_create_user(username);
-                db_->save_message(user_id, chat_msg.content(), chat_msg.timestamp());
-            }
+              // We don't have direct access to the IP here, so we need an alternative approach
+              // Option 1: Look up the participant in the participants_ set and get their IP
+              auto it = std::find_if(participants_.begin(), participants_.end(),
+                                    [&username](const chat_participant_ptr& p) {
+                                        return p->username() == username;
+                                    });
+              
+              std::string ip_address = "unknown";
+              if (it != participants_.end()) {
+                  // This assumes you've added a get_ip_address() method to chat_participant
+                  ip_address = (*it)->get_ip_address();
+              }
+              
+              int user_id = db_->get_or_create_user(username, ip_address);
+              db_->save_message(user_id, chat_msg.content(), chat_msg.timestamp());
+          }
         }
 
         recent_msgs_.push_back(msg);
@@ -111,6 +126,14 @@ public:
         for (auto participant: participants_)
             participant->deliver(msg);
     }
+
+  std::vector<std::pair<std::string, std::string>> get_connected_clients() const {
+      std::vector<std::pair<std::string, std::string>> clients;
+      for (const auto& participant : participants_) {
+          clients.emplace_back(participant->username(), participant->get_ip_address());
+      }
+      return clients;
+  }
 
 private:
     std::set<chat_participant_ptr> participants_;
@@ -130,6 +153,12 @@ public:
       room_(room),
       username_("anonymous") // Default username until registration
   {
+    try {
+      ip_address_ = socket_.remote_endpoint().address().to_string();
+    }
+    catch (std::exception& e) {
+      ip_address_ = "unknown";
+    }
   }
 
   void start()
@@ -150,6 +179,10 @@ public:
 
   const std::string& username() const override {
     return username_;
+  }
+
+  const std::string& get_ip_address() const override {
+    return ip_address_;
   }
 
 private:
@@ -214,7 +247,7 @@ private:
 
     // Now join the room after username is set
     if (!joined_) {
-      room_.join(shared_from_this());
+      room_.join(shared_from_this(), ip_address_);
       joined_ = true;
     }
   }
@@ -268,6 +301,7 @@ private:
   chat_message read_msg_;
   chat_message_queue write_msgs_;
   std::string username_;
+  std::string ip_address_;
   bool joined_ = false;
 };
 
@@ -282,6 +316,10 @@ public:
       room_(db)
   {
     do_accept();
+  }
+
+  const chat_room& get_room() const {
+    return room_;
   }
 
 private:
@@ -356,7 +394,53 @@ int main(int argc, char* argv[])
     }
     std::cout << std::endl;
 
-    io_context.run();
+    // Start the io_context in a separate thread
+    std::thread io_thread([&io_context](){ io_context.run(); });
+
+    // Main thread can now do other things, like accepting console commands
+    std::cout << "Server is running. Type 'quit' to stop the server." << std::endl;
+    
+    std::string command;
+    while (std::getline(std::cin, command)) {
+      if (command == "/quit") {
+        std::cout << "Shutting down server..." << std::endl;
+        break;
+      } else if (command == "/clients") {
+        // Show information about all connected clients
+        std::cout << "Connected clients:" << std::endl;
+        std::cout << "-----------------" << std::endl;
+        
+        // If we have multiple servers, check each one
+        int total_clients = 0;
+        for (const auto& server : servers) {
+          const auto& clients = server.get_room().get_connected_clients();
+          total_clients += clients.size();
+          
+          for (const auto& client : clients) {
+            std::cout << "Username: "  << client.first << " "
+                      << "IP: " << client.second << std::endl;
+          }
+          std::cout << "-----------------" << std::endl;
+          if (total_clients == 0) 
+            std::cout << "There is not connected clients: " << std::endl;
+          else
+            std::cout << "Total connected clients: " << total_clients << std::endl;
+        }
+      } else if (command == "/help") {
+        std::cout << "Available commands:\n"
+                  << "  /help    - Show this help message\n"
+                  << "  /clients - Show connected clients\n"
+                  << "  /quit    - Stop the server\n";
+      } else {
+        std::cout << "Unknown command. Type '/help' for available commands." << std::endl;
+      }
+    }
+
+    // Stop io_context and wait for thread to finish
+    io_context.stop();
+    io_thread.join();
+    
+    std::cout << "Server shutdown complete." << std::endl;
   }
   catch (std::exception& e)
   {

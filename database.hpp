@@ -13,6 +13,7 @@
 struct UserInfo {
     int user_id;
     std::string username;
+    std::string ip_address;
     std::time_t last_seen;
     std::time_t created_at;
 };
@@ -48,8 +49,8 @@ public:
     bool initialize();
 
     // User operations
-    int get_or_create_user(const std::string& username);
-    bool update_user_last_seen(int user_id, std::time_t timestamp);
+    int get_or_create_user(const std::string& username, const std::string& ip_address);
+    bool update_user_last_seen(int user_id, const std::string& ip_address, std::time_t timestamp) ;
     std::vector<UserInfo> get_active_users(int limit = 100);
     std::optional<UserInfo> get_user_by_id(int user_id);
     std::optional<UserInfo> get_user_by_username(const std::string& username);

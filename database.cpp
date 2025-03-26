@@ -22,6 +22,7 @@ bool Database::initialize() {
         "CREATE TABLE IF NOT EXISTS users ("
         "user_id INTEGER PRIMARY KEY AUTOINCREMENT, "
         "username TEXT UNIQUE NOT NULL, "
+        "ip_address TEXT NOT NULL, "
         "last_seen TIMESTAMP NOT NULL, "
         "created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"
         ");";
@@ -51,7 +52,7 @@ bool Database::execute_query(const std::string& query) {
     return true;
 }
 
-int Database::get_or_create_user(const std::string& username) {
+int Database::get_or_create_user(const std::string& username, const std::string& ip_address) {
     if (!db_) return -1;
 
     // First try to get existing user
@@ -73,18 +74,19 @@ int Database::get_or_create_user(const std::string& username) {
     if (user_id != -1) {
         // User exists, update last_seen
         std::time_t now = std::time(nullptr);
-        update_user_last_seen(user_id, now);
+        update_user_last_seen(user_id, ip_address, now);
         return user_id;
     }
 
     // Create new user
-    query = "INSERT INTO users (username, last_seen) VALUES (?, ?);";
+    query = "INSERT INTO users (username, ip_address, last_seen) VALUES (?, ?, ?);";
     if (sqlite3_prepare_v2(db_, query.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
         return -1;
     }
 
     std::time_t now = std::time(nullptr);
     sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 2, ip_address.c_str(), -1, SQLITE_STATIC);
     sqlite3_bind_int64(stmt, 2, now);
 
     if (sqlite3_step(stmt) != SQLITE_DONE) {
@@ -96,17 +98,18 @@ int Database::get_or_create_user(const std::string& username) {
     return sqlite3_last_insert_rowid(db_);
 }
 
-bool Database::update_user_last_seen(int user_id, std::time_t timestamp) {
+bool Database::update_user_last_seen(int user_id, const std::string& ip_address, std::time_t timestamp) {
     if (!db_) return false;
 
     sqlite3_stmt* stmt;
-    std::string query = "UPDATE users SET last_seen = ? WHERE user_id = ?;";
+    std::string query = "UPDATE users SET last_seen = ?, ip_address = ? WHERE user_id = ?;";
 
     if (sqlite3_prepare_v2(db_, query.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
         return false;
     }
 
     sqlite3_bind_int64(stmt, 1, timestamp);
+    sqlite3_bind_text(stmt, 2, ip_address.c_str(), -1, SQLITE_STATIC);
     sqlite3_bind_int(stmt, 2, user_id);
 
     bool success = (sqlite3_step(stmt) == SQLITE_DONE);
@@ -134,8 +137,9 @@ std::vector<UserInfo> Database::get_active_users(int limit) {
         UserInfo user;
         user.user_id = sqlite3_column_int(stmt, 0);
         user.username = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
-        user.last_seen = sqlite3_column_int64(stmt, 2);
-        user.created_at = sqlite3_column_int64(stmt, 3);
+        user.ip_address = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+        user.last_seen = sqlite3_column_int64(stmt, 3);
+        user.created_at = sqlite3_column_int64(stmt, 4);
         users.push_back(user);
     }
 

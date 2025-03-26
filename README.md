@@ -36,7 +36,7 @@ sudo apt-get install -y libsqlite3-dev
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/cpp-chat-app.git
+git clone https://github.com/GeorgiABInev/chat.git
 cd cpp-chat-app
 
 # Create a build directory
@@ -64,7 +64,7 @@ make
 
 ```bash
 # Connect to a server with a username
-./chat_client localhost 9000 YourUsername
+./chat_client 127.0.0.1 9000 YourUsername
 ```
 
 ## Client Commands
