@@ -450,7 +450,7 @@ int main(int argc, char* argv[])
   {
     if (argc < 2)
     {
-      std::cerr << "Usage: chat_server <port> [<port> ...] [--db=<database_path>]\n";
+      std::cerr << "Usage: chat_server <port> [--db=<database_path>]\n";
       return 1;
     }
 
@@ -463,22 +463,8 @@ int main(int argc, char* argv[])
     Logger::getInstance().write("System", "Chat server starting up...");
 
     // Parse command line arguments
-    std::vector<int> ports;
+    int port = std::atoi(argv[1]);
     std::string db_path = "chat_history.db"; // Default database path
-
-    for (int i = 1; i < argc; ++i) {
-      std::string arg = argv[i];
-      if (arg.substr(0, 5) == "--db=") {
-        db_path = arg.substr(5);
-      } else {
-        ports.push_back(std::atoi(argv[i]));
-      }
-    }
-
-    if (ports.empty()) {
-      std::cerr << "At least one port must be specified.\n";
-      return 1;
-    }
 
     // Initialize database
     std::shared_ptr<Database> db = std::make_shared<Database>(db_path);
@@ -489,19 +475,11 @@ int main(int argc, char* argv[])
 
     boost::asio::io_context io_context;
 
-    // Create servers on specified ports
-    std::list<chat_server> servers;
-    for (int port : ports) {
-      tcp::endpoint endpoint(tcp::v4(), port);
-      servers.emplace_back(io_context, endpoint, db);
-    }
+    tcp::endpoint endpoint(tcp::v4(), port);
+    chat_server server(io_context, endpoint, db);
 
     std::cout << "Chat server started with database: " << db_path << std::endl;
-    std::cout << "Listening on port(s): ";
-    for (int port : ports) {
-      std::cout << port << " ";
-    }
-    std::cout << std::endl;
+    std::cout << "Listening on port: " << port <<  std::endl;
 
     // Start the io_context in a separate thread
     std::thread io_thread([&io_context](){ io_context.run(); });
@@ -519,34 +497,31 @@ int main(int argc, char* argv[])
         std::cout << "Connected clients:" << std::endl;
         std::cout << "-----------------" << std::endl;
         
-        // If we have multiple servers, check each one
         int total_clients = 0;
         std::time_t current_time = std::time(nullptr);
         
-        for (const auto& server : servers) {
-          const auto& clients = server.get_room().get_connected_clients();
-          total_clients += clients.size();
+        const auto& clients = server.get_room().get_connected_clients();
+        total_clients += clients.size();
+        
+        for (const auto& client : clients) {
+          std::string username = std::get<0>(client);
+          std::string ip = std::get<1>(client);
+          std::time_t conn_time = std::get<2>(client);
           
-          for (const auto& client : clients) {
-            std::string username = std::get<0>(client);
-            std::string ip = std::get<1>(client);
-            std::time_t conn_time = std::get<2>(client);
-            
-            // Calculate time online in seconds
-            std::time_t seconds_online = current_time - conn_time;
-      
-            int hours = seconds_online / 3600;
-            int minutes = (seconds_online % 3600) / 60;
-            int seconds = seconds_online % 60;
-            
-            std::cout << "Username: " << std::left << std::setw(15) << username
-                      << "IP: " << std::left << std::setw(15) << ip
-                      << "Time online: " 
-                      << std::right << std::setw(2) << std::setfill('0') << hours << ":"
-                      << std::right << std::setw(2) << std::setfill('0') << minutes << ":"
-                      << std::right << std::setw(2) << std::setfill('0') << seconds 
-                      << std::setfill(' ') << std::endl;
-          }
+          // Calculate time online in seconds
+          std::time_t seconds_online = current_time - conn_time;
+    
+          int hours = seconds_online / 3600;
+          int minutes = (seconds_online % 3600) / 60;
+          int seconds = seconds_online % 60;
+          
+          std::cout << "Username: " << std::left << std::setw(15) << username
+                    << "IP: " << std::left << std::setw(15) << ip
+                    << "Time online: " 
+                    << std::right << std::setw(2) << std::setfill('0') << hours << ":"
+                    << std::right << std::setw(2) << std::setfill('0') << minutes << ":"
+                    << std::right << std::setw(2) << std::setfill('0') << seconds 
+                    << std::setfill(' ') << std::endl;
         }
         
         std::cout << "-----------------" << std::endl;
@@ -574,14 +549,11 @@ int main(int argc, char* argv[])
             reason = username.substr(reason_pos + 1);
             username = username.substr(0, reason_pos);
         }
-        
-        // Try to kick the user from any server
-        for (auto& server : servers) {
-            if (server.kick_user(username, reason)) {
-                user_found = true;
-                std::cout << "User '" << username << "' has been kicked." << std::endl;
-                break;
-            }
+    
+        if (server.kick_user(username, reason)) {
+            user_found = true;
+            std::cout << "User '" << username << "' has been kicked." << std::endl;
+            break;
         }
         
         if (!user_found) {
