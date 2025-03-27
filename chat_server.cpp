@@ -5,10 +5,12 @@
 #include <memory>
 #include <set>
 #include <utility>
+#include <iomanip>
 #include <boost/asio.hpp>
 
 #include "database.hpp"
 #include "chat_message.hpp"
+#include "logger.hpp"
 
 using boost::asio::ip::tcp;
 
@@ -25,6 +27,8 @@ public:
   virtual void deliver(const chat_message& msg) = 0;
   virtual const std::string& username() const = 0;
   virtual const std::string& get_ip_address() const = 0;
+  virtual std::time_t get_connection_time() const = 0;  
+  virtual void disconnect() = 0;
 };
 
 typedef std::shared_ptr<chat_participant> chat_participant_ptr;
@@ -127,12 +131,62 @@ public:
             participant->deliver(msg);
     }
 
-  std::vector<std::pair<std::string, std::string>> get_connected_clients() const {
-      std::vector<std::pair<std::string, std::string>> clients;
-      for (const auto& participant : participants_) {
-          clients.emplace_back(participant->username(), participant->get_ip_address());
+    bool kick_user(const std::string& username, const std::string& reason) {
+      // Find the participant with this username
+      for (auto it = participants_.begin(); it != participants_.end(); ++it) {
+          if ((*it)->username() == username) {
+              // Found the user to kick
+              auto participant = *it;
+              
+              // Send kick message to the user being kicked
+              chat::ChatPacket kick_packet;
+              auto* system_msg = kick_packet.mutable_message();
+              system_msg->set_username("System");
+              system_msg->set_content("You have been kicked from the server: " + reason);
+              system_msg->set_timestamp(std::time(nullptr));
+              
+              chat_message kick_msg;
+              kick_msg.set_protobuf_message(kick_packet);
+              participant->deliver(kick_msg);
+              
+              // Send announcement to all users
+              chat::ChatPacket announce_packet;
+              auto* announce_msg = announce_packet.mutable_message();
+              announce_msg->set_username("System");
+              announce_msg->set_content("User " + username + " has been kicked from the server");
+              announce_msg->set_timestamp(std::time(nullptr));
+              
+              chat_message announce_message;
+              announce_message.set_protobuf_message(announce_packet);
+              deliver(announce_message);
+              
+              // Add to the log
+              Logger::getInstance().write("System", "User " + username + " has been kicked: " + reason);
+              
+              // Now remove the user from the room
+              participants_.erase(it);
+              
+              // Close the connection
+              participant->disconnect();
+              
+              return true;
+          }
       }
-      return clients;
+      
+      // User not found
+      return false;
+  }
+
+  std::vector<std::tuple<std::string, std::string, std::time_t>> get_connected_clients() const {
+    std::vector<std::tuple<std::string, std::string, std::time_t>> clients;
+    for (const auto& participant : participants_) {
+        clients.emplace_back(
+            participant->username(),
+            participant->get_ip_address(),
+            participant->get_connection_time()
+        );
+    }
+    return clients;
   }
 
 private:
@@ -151,7 +205,10 @@ public:
   chat_session(tcp::socket socket, chat_room& room)
     : socket_(std::move(socket)),
       room_(room),
-      username_("anonymous") // Default username until registration
+      username_("anonymous"), // Default username until registration
+      timer_(socket_.get_executor()),
+      idle_timeout_(std::chrono::minutes(10)),
+      connection_time_(std::time(nullptr)) 
   {
     try {
       ip_address_ = socket_.remote_endpoint().address().to_string();
@@ -165,6 +222,7 @@ public:
   {
     // Wait for registration message first before joining room
     do_read_header();
+    start_idle_timer();
   }
 
   void deliver(const chat_message& msg) override
@@ -177,6 +235,13 @@ public:
     }
   }
 
+  void disconnect() override {
+    boost::asio::post(socket_.get_executor(),
+        [this, self = shared_from_this()]() {
+            socket_.close();
+        });
+  }
+
   const std::string& username() const override {
     return username_;
   }
@@ -185,7 +250,29 @@ public:
     return ip_address_;
   }
 
+  std::time_t get_connection_time() const override {
+    return connection_time_;
+  }
+
 private:
+  // Reset the idle timer whenever there's activity
+  void reset_idle_timer() {
+    timer_.expires_after(idle_timeout_);
+    timer_.async_wait(
+        [this, self = shared_from_this()](boost::system::error_code ec) {
+          if (!ec) {
+            // Timer expired, disconnect the client due to inactivity
+            std::cout << "Client " << username_ << " disconnected due to inactivity." << std::endl;
+            socket_.close();
+          }
+        });
+  }
+
+  // Start the idle timer when the session begins
+  void start_idle_timer() {
+    reset_idle_timer();
+  }
+
   void do_read_header()
   {
     auto self(shared_from_this());
@@ -195,6 +282,8 @@ private:
         {
           if (!ec && read_msg_.decode_header())
           {
+            // Reset timer on successful read
+            reset_idle_timer();
             do_read_body();
           }
           else
@@ -258,6 +347,9 @@ private:
       return;
     }
 
+    // Log the message
+    Logger::getInstance().write(username_, chat_msg.content());
+
     // Create a new protobuf message with the correct username
     chat::ChatPacket packet;
     auto* msg = packet.mutable_message();
@@ -303,6 +395,11 @@ private:
   std::string username_;
   std::string ip_address_;
   bool joined_ = false;
+
+  // Idle timeout members
+  boost::asio::steady_timer timer_;
+  std::chrono::steady_clock::duration idle_timeout_;
+  std::time_t connection_time_;
 };
 
 //----------------------------------------------------------------------
@@ -320,6 +417,10 @@ public:
 
   const chat_room& get_room() const {
     return room_;
+  }
+
+  bool kick_user(const std::string& username, const std::string& reason) {
+    return room_.kick_user(username, reason);
   }
 
 private:
@@ -352,6 +453,14 @@ int main(int argc, char* argv[])
       std::cerr << "Usage: chat_server <port> [<port> ...] [--db=<database_path>]\n";
       return 1;
     }
+
+    if (!Logger::getInstance().open_file("logs")) {
+      std::cerr << "Failed to initialize logger" << std::endl;
+      return 1;
+    }
+    
+    // Log server start
+    Logger::getInstance().write("System", "Chat server starting up...");
 
     // Parse command line arguments
     std::vector<int> ports;
@@ -398,7 +507,7 @@ int main(int argc, char* argv[])
     std::thread io_thread([&io_context](){ io_context.run(); });
 
     // Main thread can now do other things, like accepting console commands
-    std::cout << "Server is running. Type 'quit' to stop the server." << std::endl;
+    std::cout << "Server is running.\nType '/quit' to stop the server or '/help' for available commands." << std::endl;
     
     std::string command;
     while (std::getline(std::cin, command)) {
@@ -412,25 +521,78 @@ int main(int argc, char* argv[])
         
         // If we have multiple servers, check each one
         int total_clients = 0;
+        std::time_t current_time = std::time(nullptr);
+        
         for (const auto& server : servers) {
           const auto& clients = server.get_room().get_connected_clients();
           total_clients += clients.size();
           
           for (const auto& client : clients) {
-            std::cout << "Username: "  << client.first << " "
-                      << "IP: " << client.second << std::endl;
+            std::string username = std::get<0>(client);
+            std::string ip = std::get<1>(client);
+            std::time_t conn_time = std::get<2>(client);
+            
+            // Calculate time online in seconds
+            std::time_t seconds_online = current_time - conn_time;
+      
+            int hours = seconds_online / 3600;
+            int minutes = (seconds_online % 3600) / 60;
+            int seconds = seconds_online % 60;
+            
+            std::cout << "Username: " << std::left << std::setw(15) << username
+                      << "IP: " << std::left << std::setw(15) << ip
+                      << "Time online: " 
+                      << std::right << std::setw(2) << std::setfill('0') << hours << ":"
+                      << std::right << std::setw(2) << std::setfill('0') << minutes << ":"
+                      << std::right << std::setw(2) << std::setfill('0') << seconds 
+                      << std::setfill(' ') << std::endl;
           }
-          std::cout << "-----------------" << std::endl;
-          if (total_clients == 0) 
-            std::cout << "There is not connected clients: " << std::endl;
-          else
-            std::cout << "Total connected clients: " << total_clients << std::endl;
         }
-      } else if (command == "/help") {
+        
+        std::cout << "-----------------" << std::endl;
+        if (total_clients == 0) 
+          std::cout << "There are no connected clients." << std::endl;
+        else
+          std::cout << "Total connected clients: " << total_clients << std::endl;
+      } else if (command.substr(0, 6) == "/kick ") {
+        std::string username = command.substr(6);
+        bool user_found = false;
+        
+        // Trim leading/trailing whitespace from username
+        username.erase(0, username.find_first_not_of(" \t"));
+        username.erase(username.find_last_not_of(" \t") + 1);
+        
+        if (username.empty()) {
+            std::cout << "Usage: /kick <username> [reason]" << std::endl;
+            continue;
+        }
+        
+        // Extract reason if provided
+        std::string reason = "No reason provided";
+        size_t reason_pos = username.find(' ');
+        if (reason_pos != std::string::npos) {
+            reason = username.substr(reason_pos + 1);
+            username = username.substr(0, reason_pos);
+        }
+        
+        // Try to kick the user from any server
+        for (auto& server : servers) {
+            if (server.kick_user(username, reason)) {
+                user_found = true;
+                std::cout << "User '" << username << "' has been kicked." << std::endl;
+                break;
+            }
+        }
+        
+        if (!user_found) {
+            std::cout << "User '" << username << "' not found." << std::endl;
+        }
+    } else if (command == "/help") {
         std::cout << "Available commands:\n"
-                  << "  /help    - Show this help message\n"
-                  << "  /clients - Show connected clients\n"
-                  << "  /quit    - Stop the server\n";
+                  << "  /help                     - Show this help message\n"
+                  << "  /clients                  - Show connected clients\n"
+                  << "  /kick <username> [reason] - Kick a user from the server\n"
+                  << "  /quit                     - Stop the server\n";
       } else {
         std::cout << "Unknown command. Type '/help' for available commands." << std::endl;
       }
@@ -439,12 +601,17 @@ int main(int argc, char* argv[])
     // Stop io_context and wait for thread to finish
     io_context.stop();
     io_thread.join();
+
+    Logger::getInstance().write("System", "Server shutting down");
+    Logger::getInstance().close_file();
     
     std::cout << "Server shutdown complete." << std::endl;
   }
   catch (std::exception& e)
   {
     std::cerr << "Exception: " << e.what() << "\n";
+    Logger::getInstance().write("System", std::string("Error: ") + e.what());
+    Logger::getInstance().close_file();
   }
 
   return 0;
