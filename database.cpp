@@ -87,7 +87,7 @@ int Database::get_or_create_user(const std::string& username, const std::string&
     std::time_t now = std::time(nullptr);
     sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 2, ip_address.c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_int64(stmt, 2, now);
+    sqlite3_bind_int64(stmt, 3, now);
 
     if (sqlite3_step(stmt) != SQLITE_DONE) {
         sqlite3_finalize(stmt);
@@ -110,7 +110,7 @@ bool Database::update_user_last_seen(int user_id, const std::string& ip_address,
 
     sqlite3_bind_int64(stmt, 1, timestamp);
     sqlite3_bind_text(stmt, 2, ip_address.c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_int(stmt, 2, user_id);
+    sqlite3_bind_int(stmt, 3, user_id);
 
     bool success = (sqlite3_step(stmt) == SQLITE_DONE);
     sqlite3_finalize(stmt);
