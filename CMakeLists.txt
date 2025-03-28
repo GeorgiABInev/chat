@@ -24,6 +24,7 @@ include_directories(
 add_executable(chat_server
     chat_server.cpp
     database.cpp  # Add new database file
+    logger.cpp
     ${PROTO_SRCS}
     ${PROTO_HDRS}
 )
@@ -50,8 +51,3 @@ target_link_libraries(chat_client
 
 # Copy the proto file to the build directory for easier access
 configure_file(chat.proto ${CMAKE_CURRENT_BINARY_DIR}/chat.proto COPYONLY)
-
-# Installation
-install(TARGETS chat_server chat_client
-    RUNTIME DESTINATION bin
-)

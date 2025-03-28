@@ -12,6 +12,8 @@
 #include "chat_message.hpp"
 #include "logger.hpp"
 
+#define IDLE_TIMEOUT 10
+
 using boost::asio::ip::tcp;
 
 //----------------------------------------------------------------------
@@ -195,7 +197,7 @@ public:
       room_(room),
       username_("anonymous"),
       timer_(socket_.get_executor()),
-      idle_timeout_(std::chrono::minutes(1)),
+      idle_timeout_(std::chrono::minutes(IDLE_TIMEOUT)),
       connection_time_(std::time(nullptr)) 
   {
     try {
@@ -248,7 +250,7 @@ private:
     timer_.async_wait(
         [this, self = shared_from_this()](boost::system::error_code ec) {
           if (!ec) {
-            std::cout << "Client " << username_ << " disconnected due 10 minutes to inactivity." << std::endl;
+            std::cout << "Client " << username_ << " disconnected due to inactivity." << std::endl;
             room_.kick_user(username_, "Disconnect the user due to inactivity");
           }
         });
