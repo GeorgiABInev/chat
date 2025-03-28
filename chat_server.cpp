@@ -59,10 +59,8 @@ public:
 
     void join(chat_participant_ptr participant, const std::string& ip_address)
     {
-        // Store/update user in database with IP
         int user_id = db_->get_or_create_user(participant->username(), ip_address);
     
-
         participants_.insert(participant);
         for (auto msg: recent_msgs_)
             participant->deliver(msg);
@@ -105,8 +103,6 @@ public:
 
             // Don't store system messages in the database
             if (username != "System") {
-              // We don't have direct access to the IP here, so we need an alternative approach
-              // Option 1: Look up the participant in the participants_ set and get their IP
               auto it = std::find_if(participants_.begin(), participants_.end(),
                                     [&username](const chat_participant_ptr& p) {
                                         return p->username() == username;
@@ -114,7 +110,6 @@ public:
               
               std::string ip_address = "unknown";
               if (it != participants_.end()) {
-                  // This assumes you've added a get_ip_address() method to chat_participant
                   ip_address = (*it)->get_ip_address();
               }
               
@@ -132,10 +127,8 @@ public:
     }
 
     bool kick_user(const std::string& username, const std::string& reason) {
-      // Find the participant with this username
       for (auto it = participants_.begin(); it != participants_.end(); ++it) {
           if ((*it)->username() == username) {
-              // Found the user to kick
               auto participant = *it;
               
               // Send kick message to the user being kicked
@@ -160,20 +153,15 @@ public:
               announce_message.set_protobuf_message(announce_packet);
               deliver(announce_message);
               
-              // Add to the log
               Logger::getInstance().write("System", "User " + username + " has been kicked: " + reason);
-              
-              // Now remove the user from the room
+
               participants_.erase(it);
-              
-              // Close the connection
               participant->disconnect();
               
               return true;
           }
       }
       
-      // User not found
       return false;
   }
 
@@ -205,9 +193,9 @@ public:
   chat_session(tcp::socket socket, chat_room& room)
     : socket_(std::move(socket)),
       room_(room),
-      username_("anonymous"), // Default username until registration
+      username_("anonymous"),
       timer_(socket_.get_executor()),
-      idle_timeout_(std::chrono::minutes(10)),
+      idle_timeout_(std::chrono::minutes(1)),
       connection_time_(std::time(nullptr)) 
   {
     try {
@@ -255,20 +243,17 @@ public:
   }
 
 private:
-  // Reset the idle timer whenever there's activity
   void reset_idle_timer() {
     timer_.expires_after(idle_timeout_);
     timer_.async_wait(
         [this, self = shared_from_this()](boost::system::error_code ec) {
           if (!ec) {
-            // Timer expired, disconnect the client due to inactivity
-            std::cout << "Client " << username_ << " disconnected due to inactivity." << std::endl;
-            socket_.close();
+            std::cout << "Client " << username_ << " disconnected due 10 minutes to inactivity." << std::endl;
+            room_.kick_user(username_, "Disconnect the user due to inactivity");
           }
         });
   }
 
-  // Start the idle timer when the session begins
   void start_idle_timer() {
     reset_idle_timer();
   }
@@ -282,7 +267,6 @@ private:
         {
           if (!ec && read_msg_.decode_header())
           {
-            // Reset timer on successful read
             reset_idle_timer();
             do_read_body();
           }
@@ -328,13 +312,11 @@ private:
   }
 
   void handle_registration(const chat::ClientRegistration& reg) {
-    // Set the username for this session
     username_ = reg.username();
     if (username_.empty()) {
       username_ = "anonymous";
     }
 
-    // Now join the room after username is set
     if (!joined_) {
       room_.join(shared_from_this(), ip_address_);
       joined_ = true;
@@ -342,12 +324,10 @@ private:
   }
 
   void handle_chat_message(const chat::ChatMessage& chat_msg) {
-    // Only deliver messages if user has joined
     if (!joined_) {
       return;
     }
 
-    // Log the message
     Logger::getInstance().write(username_, chat_msg.content());
 
     // Create a new protobuf message with the correct username
@@ -530,8 +510,7 @@ int main(int argc, char* argv[])
       std::cerr << "Failed to initialize logger" << std::endl;
       return 1;
     }
-    
-    // Log server start
+
     Logger::getInstance().write("System", "Chat server starting up...");
 
     // Parse command line arguments

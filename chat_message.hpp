@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
-#include <netinet/in.h> // For htonl and ntohl
+#include <netinet/in.h>
 #include "chat.pb.h"
 
 class chat_message {
@@ -87,7 +87,7 @@ public:
 private:
   std::vector<char> data_;
   std::size_t body_length_;
-  static constexpr std::size_t max_body_length = 4096; // Larger to accommodate protobuf
+  static constexpr std::size_t max_body_length = 4096;
 };
 
 #endif // CHAT_MESSAGE_HPP

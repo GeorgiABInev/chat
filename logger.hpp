@@ -17,20 +17,16 @@ public:
     Logger(Logger&&) = delete;
     Logger& operator=(Logger&&) = delete;
     
-    // Initialize with log directory
     bool open_file(const std::string& log_dir = "logs");
-    
-    // Close current log file
+
     void close_file();
     
     // Check if we need to rotate to a new file
     void check_rotate();
-    
-    // Write message to log
+
     void write(const std::string& username, const std::string& message);
 
 private:
-    // Private constructor for singleton
     Logger();
     ~Logger();
     

@@ -46,6 +46,10 @@ public:
     boost::asio::post(io_context_, [this]() { socket_.close(); });
   }
 
+  bool should_exit() const {
+    return exit_flag_;
+  }
+
 private:
   void do_connect(const tcp::resolver::results_type& endpoints)
   {
@@ -75,7 +79,11 @@ private:
           }
           else
           {
-            socket_.close();
+            std::cout << "Connection closed by server." << std::endl;
+            close();
+          
+            // Signal main thread to exit
+            exit_flag_ = true;
           }
         });
   }
@@ -133,6 +141,7 @@ private:
   chat_message read_msg_;
   chat_message_queue write_msgs_;
   std::string username_;
+  bool exit_flag_ = false;
 };
 
 int main(int argc, char* argv[])
@@ -170,7 +179,7 @@ int main(int argc, char* argv[])
 
     // Then handle normal chat messages
     std::string line;
-    while (std::getline(std::cin, line))
+    while (!c.should_exit() && std::getline(std::cin, line))
     {
       // Process special commands
       if (line == "/help") {
