@@ -56,8 +56,8 @@ make
 # Run the server on port 9000 with default database
 ./chat_server 9000
 
-# Run the server on multiple ports with custom database
-./chat_server 9000 9001 9002 --db=my_chat_history.db
+# Run the server on port 9000 with custom database
+./chat_server 9000 --db=my_chat_history.db
 ```
 
 ### Client
