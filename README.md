@@ -1,4 +1,4 @@
-# Chat Application with Protocol Buffers and SQLite
+# Chat Application
 
 This is a real-time chat application built with C++, using Boost.Asio for networking, Protocol Buffers for message serialization, and SQLite for persistent storage of chat history.
 
