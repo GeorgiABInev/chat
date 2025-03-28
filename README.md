@@ -67,6 +67,15 @@ make
 ./chat_client 127.0.0.1 9000 YourUsername
 ```
 
+## Server Commands
+
+On the server you can use the following commands:
+
+- `/help` - Show available commands
+- `/clients` - Show connected clients
+- `/kick <username> [reason]` - Kick a user from the server
+- `/quit` - Exit the chat client
+
 ## Client Commands
 
 While connected to the server, you can use the following commands:
@@ -80,6 +89,7 @@ While connected to the server, you can use the following commands:
 - `chat_message.hpp` - Message encapsulation with Protocol Buffers
 - `chat_client.cpp` - Client implementation
 - `chat_server.cpp` - Server implementation
+- `logger.cpp` - Logger implementation
 - `database.hpp` and `database.cpp` - Database access layer
 
 ## Database Schema
@@ -92,6 +102,7 @@ Stores information about all users who have connected:
 CREATE TABLE users (
     user_id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
+    ip_address TEXT NOT NULL,
     last_seen TIMESTAMP NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

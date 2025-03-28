@@ -5,11 +5,7 @@
 
 // Utility function to create directory if it doesn't exist
 bool createDirectory(const std::string& path) {
-#ifdef _WIN32
-    int result = _mkdir(path.c_str());
-#else
     int result = mkdir(path.c_str(), 0755);
-#endif
     return result == 0 || errno == EEXIST;
 }
 
