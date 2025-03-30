@@ -1,4 +1,3 @@
-// chat_message.hpp
 #ifndef CHAT_MESSAGE_HPP
 #define CHAT_MESSAGE_HPP
 

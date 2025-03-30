@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(ProtobufChat CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Find required packages
@@ -23,6 +23,8 @@ include_directories(
 # Server executable
 add_executable(chat_server
     chat_server.cpp
+    chat_room.cpp
+    chat_session.cpp
     database.cpp  # Add new database file
     logger.cpp
     ${PROTO_SRCS}

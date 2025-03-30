@@ -89,8 +89,11 @@ While connected to the server, you can use the following commands:
 - `chat_message.hpp` - Message encapsulation with Protocol Buffers
 - `chat_client.cpp` - Client implementation
 - `chat_server.cpp` - Server implementation
-- `logger.cpp` - Logger implementation
-- `database.hpp` and `database.cpp` - Database access layer
+- `chat_participant.h` - Participant interface 
+- `chat_room.h` and `chat_room.cpp` - Room implementation
+- `chat_session.h` and `chat_session.cpp` - Session implementation
+- `logger.h` and `logger.cpp` - Logger implementation
+- `database.h` and `database.cpp` - Database access layer
 
 ## Database Schema
 

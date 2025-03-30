@@ -1,5 +1,5 @@
-#ifndef LOGGER_HPP
-#define LOGGER_HPP
+#ifndef LOGGER_H
+#define LOGGER_H
 
 #include <string>
 #include <mutex>
@@ -37,4 +37,4 @@ private:
     bool initialized_;
 };
 
-#endif // LOGGER_HPP
+#endif // LOGGER_H

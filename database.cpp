@@ -1,4 +1,4 @@
-#include "database.hpp"
+#include "database.h"
 #include <iostream>
 
 Database::Database(const std::string& db_path) : db_(nullptr) {

@@ -1,8 +1,3 @@
-//
-// chat_client.cpp
-// ~~~~~~~~~~~~~~~
-//
-
 #include <cstdlib>
 #include <deque>
 #include <iostream>

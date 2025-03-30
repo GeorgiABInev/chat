@@ -1,5 +1,5 @@
-#ifndef DATABASE_HPP
-#define DATABASE_HPP
+#ifndef DATABASE_H
+#define DATABASE_H
 
 #include <string>
 #include <vector>
@@ -60,4 +60,4 @@ private:
     bool execute_query(const std::string& query);
 };
 
-#endif // DATABASE_HPP
+#endif // DATABASE_HP
