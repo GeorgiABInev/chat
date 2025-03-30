@@ -4,12 +4,14 @@
 #include <cstring>
 
 // Utility function to create directory if it doesn't exist
-bool createDirectory(const std::string& path) {
+bool createDirectory(const std::string& path) 
+{
     int result = mkdir(path.c_str(), 0755);
     return result == 0 || errno == EEXIST;
 }
 
-Logger& Logger::getInstance() {
+Logger& Logger::getInstance() 
+{
     static Logger instance;
     return instance;
 }
@@ -17,14 +19,17 @@ Logger& Logger::getInstance() {
 Logger::Logger() 
     : log_file_(nullptr), 
       current_hour_(0), 
-      initialized_(false) {
+      initialized_(false) 
+{
 }
 
-Logger::~Logger() {
+Logger::~Logger() 
+{
     close_file();
 }
 
-bool Logger::open_file(const std::string& log_dir) {
+bool Logger::open_file(const std::string& log_dir) 
+{
     std::lock_guard<std::mutex> lock(mutex_);
     
     log_dir_ = log_dir;
@@ -60,7 +65,8 @@ bool Logger::open_file(const std::string& log_dir) {
     return true;
 }
 
-void Logger::check_rotate() {
+void Logger::check_rotate() 
+{
     std::time_t now = std::time(nullptr);
     std::time_t current_hour = now - (now % 3600);
     
@@ -109,7 +115,8 @@ void Logger::close_file() {
     initialized_ = false;
 }
 
-void Logger::write(const std::string& username, const std::string& message) {
+void Logger::write(const std::string& username, const std::string& message) 
+{
     
     if (!initialized_ || !log_file_) {
         return;

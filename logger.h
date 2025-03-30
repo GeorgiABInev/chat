@@ -18,12 +18,10 @@ public:
     Logger& operator=(Logger&&) = delete;
     
     bool open_file(const std::string& log_dir = "logs");
-
     void close_file();
     
     // Check if we need to rotate to a new file
     void check_rotate();
-
     void write(const std::string& username, const std::string& message);
 
 private:

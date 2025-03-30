@@ -1,7 +1,8 @@
 #include "database.h"
 #include <iostream>
 
-Database::Database(const std::string& db_path) : db_(nullptr) {
+Database::Database(const std::string& db_path) : db_(nullptr) 
+{
     int result = sqlite3_open(db_path.c_str(), &db_);
     if (result != SQLITE_OK) {
         std::cerr << "Failed to open database: " << sqlite3_errmsg(db_) << std::endl;
@@ -9,13 +10,15 @@ Database::Database(const std::string& db_path) : db_(nullptr) {
     }
 }
 
-Database::~Database() {
+Database::~Database() 
+{
     if (db_) {
         sqlite3_close(db_);
     }
 }
 
-bool Database::initialize() {
+bool Database::initialize() 
+{
     if (!db_) return false;
 
     const char* create_users_table =
@@ -39,7 +42,8 @@ bool Database::initialize() {
     return execute_query(create_users_table) && execute_query(create_messages_table);
 }
 
-bool Database::execute_query(const std::string& query) {
+bool Database::execute_query(const std::string& query) 
+{
     char* error_msg = nullptr;
     int result = sqlite3_exec(db_, query.c_str(), nullptr, nullptr, &error_msg);
 
@@ -52,7 +56,8 @@ bool Database::execute_query(const std::string& query) {
     return true;
 }
 
-int Database::get_or_create_user(const std::string& username, const std::string& ip_address) {
+int Database::get_or_create_user(const std::string& username, const std::string& ip_address) 
+{
     if (!db_) return -1;
 
     // First try to get existing user
@@ -98,7 +103,8 @@ int Database::get_or_create_user(const std::string& username, const std::string&
     return sqlite3_last_insert_rowid(db_);
 }
 
-bool Database::update_user_last_seen(int user_id, const std::string& ip_address, std::time_t timestamp) {
+bool Database::update_user_last_seen(int user_id, const std::string& ip_address, std::time_t timestamp) 
+{
     if (!db_) return false;
 
     sqlite3_stmt* stmt;
@@ -118,7 +124,8 @@ bool Database::update_user_last_seen(int user_id, const std::string& ip_address,
     return success;
 }
 
-bool Database::save_message(int user_id, const std::string& content, std::time_t timestamp) {
+bool Database::save_message(int user_id, const std::string& content, std::time_t timestamp) 
+{
     if (!db_) return false;
 
     sqlite3_stmt* stmt;
@@ -138,7 +145,8 @@ bool Database::save_message(int user_id, const std::string& content, std::time_t
     return success;
 }
 
-std::vector<MessageInfo> Database::get_recent_messages(int limit) {
+std::vector<MessageInfo> Database::get_recent_messages(int limit) 
+{
     std::vector<MessageInfo> messages;
     if (!db_) return messages;
 

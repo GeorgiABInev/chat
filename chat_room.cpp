@@ -132,14 +132,15 @@ bool chat_room::kick_user(const std::string& username, const std::string& reason
     return false;
 }
 
-std::vector<std::tuple<std::string, std::string, std::time_t>> chat_room::get_connected_clients() const {
-std::vector<std::tuple<std::string, std::string, std::time_t>> clients;
-for (const auto& participant : participants_) {
-    clients.emplace_back(
-        participant->username(),
-        participant->get_ip_address(),
-        participant->get_connection_time()
-    );
-}
-return clients;
+std::vector<std::tuple<std::string, std::string, std::time_t>> chat_room::get_connected_clients() const 
+{
+    std::vector<std::tuple<std::string, std::string, std::time_t>> clients;
+    for (const auto& participant : participants_) {
+        clients.emplace_back(
+            participant->username(),
+            participant->get_ip_address(),
+            participant->get_connection_time()
+        );
+    }
+    return clients;
 }

@@ -16,37 +16,45 @@ public:
   }
 
   // Data access for raw buffer
-  const char* data() const {
+  const char* data() const 
+  {
     return data_.data();
   }
 
-  char* data() {
+  char* data() 
+  {
     return data_.data();
   }
 
-  std::size_t length() const {
+  std::size_t length() const 
+  {
     return header_length + body_length_;
   }
 
-  const char* body() const {
+  const char* body() const 
+  {
     return data() + header_length;
   }
 
-  char* body() {
+  char* body() 
+  {
     return data() + header_length;
   }
 
-  std::size_t body_length() const {
+  std::size_t body_length() const 
+  {
     return body_length_;
   }
 
-  void body_length(std::size_t length) {
+  void body_length(std::size_t length) 
+  {
     body_length_ = length;
     if (data_.size() < header_length + body_length_)
       data_.resize(header_length + body_length_);
   }
 
-  bool decode_header() {
+  bool decode_header() 
+  {
     uint32_t msg_size = 0;
     std::memcpy(&msg_size, data(), header_length);
     body_length_ = ntohl(msg_size);
@@ -62,13 +70,15 @@ public:
     return true;
   }
 
-  void encode_header() {
+  void encode_header() 
+  {
     uint32_t network_order = htonl(static_cast<uint32_t>(body_length_));
     std::memcpy(data(), &network_order, header_length);
   }
 
   // Protobuf specific methods
-  bool set_protobuf_message(const chat::ChatPacket& packet) {
+  bool set_protobuf_message(const chat::ChatPacket& packet) 
+  {
     std::string serialized;
     if (!packet.SerializeToString(&serialized))
       return false;
@@ -79,7 +89,8 @@ public:
     return true;
   }
 
-  bool get_protobuf_message(chat::ChatPacket& packet) const {
+  bool get_protobuf_message(chat::ChatPacket& packet) const 
+  {
     return packet.ParseFromArray(body(), body_length());
   }
 
