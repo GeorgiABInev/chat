@@ -40,6 +40,7 @@ void chat_session::deliver(const chat_message& msg)
 
 void chat_session::disconnect() 
 {
+  timer_.cancel();
   boost::asio::post(socket_.get_executor(),
       [this, self = shared_from_this()]() {
           socket_.close();
