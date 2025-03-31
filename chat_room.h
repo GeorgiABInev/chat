@@ -20,6 +20,7 @@ public:
     void deliver(const chat_message& msg);
     bool kick_user(const std::string& username, const std::string& reason);
     std::vector<std::tuple<std::string, std::string, std::time_t>> get_connected_clients() const;
+    bool check_user_exist(const std::string& username) const;
 
 private:
     std::set<chat_participant_ptr> participants_;

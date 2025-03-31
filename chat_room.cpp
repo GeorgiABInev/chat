@@ -24,7 +24,7 @@ chat_room::chat_room(std::shared_ptr<Database> db)
 }
 
 void chat_room::join(chat_participant_ptr participant, const std::string& ip_address)
-{
+{   
     int user_id = db_->get_or_create_user(participant->username(), ip_address);
 
     participants_.insert(participant);
@@ -143,4 +143,15 @@ std::vector<std::tuple<std::string, std::string, std::time_t>> chat_room::get_co
         );
     }
     return clients;
+}
+
+bool chat_room::check_user_exist(const std::string& username) const
+{
+    for (const auto& participant: participants_) {
+        if (participant->username() == username) {
+            return true;
+        }
+    }
+
+    return false;
 }

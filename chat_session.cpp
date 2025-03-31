@@ -138,6 +138,20 @@ void chat_session::handle_registration(const chat::ClientRegistration& reg)
     username_ = "anonymous";
   }
 
+  if (room_.check_user_exist(username_)) {
+    chat::ChatPacket packet;
+    auto* msg = packet.mutable_message();
+    msg->set_username("System");
+    msg->set_content("That username is currently in use. Please choose another name.");
+    msg->set_timestamp(std::time(nullptr));
+
+    chat_message formatted_msg;
+    formatted_msg.set_protobuf_message(packet);
+    deliver(formatted_msg);
+    disconnect();
+    return;
+  }
+
   if (!joined_) {
     room_.join(shared_from_this(), ip_address_);
     joined_ = true;
