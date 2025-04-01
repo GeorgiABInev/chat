@@ -143,6 +143,9 @@ int main(int argc, char* argv[])
     // Parse command line arguments
     int port = std::atoi(argv[1]);
     std::string db_path = "chat_history.db"; // Default database path
+    if (argc >= 3) {
+      db_path = argv[2];
+    }
 
     // Initialize database
     std::shared_ptr<Database> db = std::make_shared<Database>(db_path);
